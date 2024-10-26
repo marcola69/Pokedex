@@ -1,0 +1,308 @@
+const trainers = [];
+const pokemons = [
+    { id: 1, nome: 'Bulbassauro', tipo: 'Planta/Veneno' },
+    { id: 2, nome: 'Ivysaur', tipo: 'Planta/Veneno' },
+    { id: 3, nome: 'Venusaur', tipo: 'Planta/Veneno' },
+    { id: 4, nome: 'Squirtle', tipo: 'Água' },
+    { id: 5, nome: 'Wartortle', tipo: 'Água' },
+    { id: 6, nome: 'Blastoise', tipo: 'Água' },
+    { id: 7, nome: 'Charmander', tipo: 'Fogo' },
+    { id: 8, nome: 'Charmeleon', tipo: 'Fogo' },
+    { id: 9, nome: 'Charizard', tipo: 'Fogo/Voador' },
+];
+
+// Funções para gerenciar Pokémon
+const getPokemons = () => pokemons;
+const getPokemonById = (id) => pokemons.find(p => p.id === parseInt(id));
+const createPokemon = (nome, tipo) => {
+    const newPokemon = { id: pokemons.length + 1, nome, tipo };
+    pokemons.push(newPokemon);
+};
+
+// Funções para gerenciar treinadores
+const createTrainer = (nome, senha) => {
+    const newTrainer = { id: trainers.length + 1, nome, senha, pokemons: [] };
+    trainers.push(newTrainer);
+    return newTrainer;
+};
+
+const getAllTrainers = () => trainers;
+const getTrainerByName = (nome) => trainers.find(t => t.nome === nome);
+
+module.exports = { getPokemons, getPokemonById, createPokemon, createTrainer, getAllTrainers, getTrainerByName };
+
+------------
+
+const pokemonModel = require('../models/pokemonModel');
+
+const getLoginForm = (req, res) => {
+    res.render('login'); // Renderiza o formulário de login
+};
+
+const login = (req, res) => {
+    const { nome, senha } = req.body;
+    const trainer = pokemonModel.getTrainerByName(nome);
+
+    if (trainer && trainer.senha === senha) {
+        req.session.trainerId = trainer.id; // Armazena o ID do treinador na sessão
+        res.redirect('/pokedex'); // Redireciona para a Pokédex
+    } else {
+        res.status(401).send('Nome ou senha incorretos.');
+    }
+};
+
+const getCreateTrainerForm = (req, res) => {
+    res.render('createTrainer'); // Renderiza o formulário de criação de treinador
+};
+
+const createTrainer = (req, res) => {
+    const { nome, senha } = req.body;
+    pokemonModel.createTrainer(nome, senha);
+    res.redirect('/login'); // Redireciona para a página de login
+};
+
+const getPokedex = (req, res) => {
+    const trainerId = req.session.trainerId;
+    const trainer = pokemonModel.getTrainerById(trainerId);
+    const pokemons = pokemonModel.getPokemons();
+    
+    if (trainer) {
+        res.render('pokedex', { trainer, pokemons });
+    } else {
+        res.redirect('/login'); // Redireciona para o login se não estiver autenticado
+    }
+};
+
+const getAllTrainers = (req, res) => {
+    const trainers = pokemonModel.getAllTrainers();
+    res.render('trainers', { trainers });
+};
+
+module.exports = {
+    getLoginForm,
+    login,
+    getCreateTrainerForm,
+    createTrainer,
+    getPokedex,
+    getAllTrainers
+};
+
+-----
+
+const express = require('express');
+const router = express.Router();
+const pokemonController = require('../controllers/pokemonController');
+
+router.get('/', (req, res) => {
+    res.redirect('/login'); // Rota inicial
+});
+
+router.get('/login', pokemonController.getLoginForm);
+router.post('/login', pokemonController.login);
+router.get('/create-trainer', pokemonController.getCreateTrainerForm);
+router.post('/create-trainer', pokemonController.createTrainer);
+router.get('/pokedex', pokemonController.getPokedex);
+router.get('/trainers', pokemonController.getAllTrainers);
+
+module.exports = router;
+
+-----
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Criar Pokémon</title>
+</head>
+<body>
+    <h1>Criar Pokémon</h1>
+    <form action="/create" method="POST">
+        <label for="nome">Nome:</label>
+        <input type="text" id="nome" name="nome" required>
+        <br>
+        <label for="tipo">Tipo:</label>
+        <input type="text" id="tipo" name="tipo" required>
+        <br>
+        <button type="submit">Criar</button>
+    </form>
+    <a href="/">Voltar à Pokédex</a>
+</body>
+</html>
+
+-----
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Fazer Cadastro</title>
+</head>
+<body>
+    <h1>Fazer Cadastro</h1>
+    <form action="/create-trainer" method="POST">
+        <label for="nome">Nome:</label>
+        <input type="text" id="nome" name="nome" required>
+        <br>
+        <button type="submit">Cadastrar Treinador</button>
+    </form>
+    <a href="/">Voltar à Pokédex</a>
+</body>
+</html>
+
+-----
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokédex</title>
+</head>
+<body>
+    <h1>Pokédex</h1>
+    <a href="/create">Criar Pokémon</a> | 
+    <a href="/create-trainer">Fazer Cadastro</a> | 
+    <a href="/trainers">Ver Treinadores</a>
+    <ul>
+        <% pokemons.forEach(function(pokemon) { %>
+            <li>
+                <a href="/pokemon/<%= pokemon.id %>"><%= pokemon.nome %></a> - <%= pokemon.tipo %>
+            </li>
+        <% }); %>
+    </ul>
+</body>
+</html>
+
+-----
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+    <h1>Login na Pokédex</h1>
+    <form action="/login" method="POST">
+        <label for="nome">Nome:</label>
+        <input type="text" id="nome" name="nome" required>
+        <br>
+        <label for="senha">Senha:</label>
+        <input type="password" id="senha" name="senha" required>
+        <br>
+        <button type="submit">Entrar</button>
+    </form>
+    <a href="/create-trainer">Fazer Cadastro</a>
+</body>
+</html>
+
+-----
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokédex de <%= trainer.nome %></title>
+</head>
+<body>
+    <h1>Pokédex de <%= trainer.nome %></h1>
+    <ul>
+        <% pokemons.forEach(function(pokemon) { %>
+            <li>
+                <%= pokemon.nome %> - <%= pokemon.tipo %>
+            </li>
+        <% }); %>
+    </ul>
+    <a href="/trainers">Ver Treinadores</a>
+</body>
+</html>
+
+-----
+
+<%# pokemon.ejs %>
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title><%= pokemon.nome %></title>
+    </head>
+    <body>
+        <h1><%= pokemon.nome %></h1>
+        <p>Tipo: <%= pokemon.tipo %></p>
+        <a href="/">Voltar à Pokédex</a>
+    </body>
+</html> 
+
+-----
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokémons de <%= trainer.nome %></title>
+</head>
+<body>
+    <h1>Pokémons de <%= trainer.nome %></h1>
+    <ul>
+        <% trainer.pokemons.forEach(function(pokemon) { %>
+            <li><%= pokemon.nome %> - <%= pokemon.tipo %></li>
+        <% }); %>
+    </ul>
+    <a href="/trainers">Voltar à lista de treinadores</a>
+</body>
+</html> 
+
+-----
+
+ <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Treinadores</title>
+</head>
+<body>
+    <h1>Lista de Treinadores</h1>
+    <ul>
+        <% trainers.forEach(function(trainer) { %>
+            <li>
+                <a href="/trainer/<%= trainer.id %>/pokemons"><%= trainer.nome %></a>
+            </li>
+        <% }); %>
+    </ul>
+    <a href="/">Voltar à Pokédex</a>
+</body>
+</html> 
+
+-----
+
+ const express = require('express');
+const bodyParser = require('body-parser');
+const session = require('express-session');
+const pokemonRoutes = require('./routes/pokemonRoutes');
+
+const app = express();
+app.set('view engine', 'ejs');
+app.set('views', './views');
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('public'));
+
+// Configuração de sessões
+app.use(session({
+    secret: 'seuSegredo', // Substitua por uma string segura
+    resave: false,
+    saveUninitialized: true,
+}));
+
+app.use('/', pokemonRoutes);
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+
+
+
+
+
+
